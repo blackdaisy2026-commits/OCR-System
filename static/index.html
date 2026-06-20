@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuminaOCR — Interactive Text Extraction System</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- App Container -->
+    <div class="app-layout">
+        
+        <!-- Header / Navbar -->
+        <header class="navbar">
+            <div class="nav-brand">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>Lumina<span>OCR</span></h1>
+                    <span class="logo-subtitle">Intelligent OCR Engine</span>
+                </div>
+            </div>
+            
+            <div class="nav-actions">
+                <button id="history-toggle" class="btn btn-secondary" title="View Scan History">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>History</span>
+                </button>
+                <button id="theme-toggle" class="btn btn-icon" title="Toggle Light/Dark Theme">
+                    <i class="fa-solid fa-sun"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Layout -->
+        <main class="dashboard-grid">
+            
+            <!-- Left Panel: Workspace (File upload / Interactive Image viewer) -->
+            <section class="panel workspace-panel">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-file-image"></i> Workspace</h2>
+                    <div class="header-actions">
+                        <button id="reset-workspace" class="btn btn-small btn-danger hidden">
+                            <i class="fa-solid fa-arrow-rotate-left"></i> Reset
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="panel-body">
+                    <!-- Drop Zone / Upload Screen -->
+                    <div id="dropzone" class="dropzone">
+                        <input type="file" id="file-input" accept="image/*" class="file-input">
+                        <div class="dropzone-content">
+                            <div class="upload-icon-wrapper">
+                                <i class="fa-solid fa-cloud-arrow-up icon-upload"></i>
+                            </div>
+                            <h3>Drag & Drop your image</h3>
+                            <p>Supports PNG, JPG, JPEG, WEBP</p>
+                            <span class="divider">or</span>
+                            <button type="button" class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                                Browse Files
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Visual Interactive Viewer (Shown after file uploaded) -->
+                    <div id="viewer-container" class="viewer-container hidden">
+                        <div class="image-wrapper">
+                            <img id="preview-image" src="" alt="OCR Preview Image">
+                            <canvas id="overlay-canvas"></canvas>
+                        </div>
+                        <div class="viewer-instructions">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span>Hover over bounding boxes to highlight matching text blocks.</span>
+                        </div>
+                    </div>
+
+                    <!-- Loader View -->
+                    <div id="loader" class="loader-overlay hidden">
+                        <div class="loader-content">
+                            <div class="spinner">
+                                <div class="double-bounce1"></div>
+                                <div class="double-bounce2"></div>
+                            </div>
+                            <h3>Extracting Text...</h3>
+                            <p>Analyzing characters and layouts with ONNX engine</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Results Drawer -->
+            <section class="panel results-panel">
+                <!-- Result tabs header -->
+                <div class="tabs-header">
+                    <button class="tab-btn active" data-tab="tab-text">
+                        <i class="fa-solid fa-align-left"></i> Extracted Text
+                    </button>
+                    <button class="tab-btn" data-tab="tab-elements">
+                        <i class="fa-solid fa-table-list"></i> Structure Table
+                    </button>
+                    <button class="tab-btn" data-tab="tab-json">
+                        <i class="fa-solid fa-code"></i> JSON Response
+                    </button>
+                </div>
+
+                <!-- Tabs Content Panels -->
+                <div class="panel-body tabs-content">
+                    
+                    <!-- Placeholder (Shown when no image is loaded) -->
+                    <div id="results-placeholder" class="results-placeholder">
+                        <div class="placeholder-icon">
+                            <i class="fa-solid fa-magnifying-glass-chart"></i>
+                        </div>
+                        <h3>No Text Extracted Yet</h3>
+                        <p>Upload or drag an image into the workspace to run the OCR engine and view results here.</p>
+                    </div>
+
+                    <!-- Tab: Text Content -->
+                    <div id="tab-text" class="tab-pane active hidden">
+                        <div class="tab-actions-bar">
+                            <div class="search-box">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" id="text-search" placeholder="Search in text...">
+                                <span id="search-matches" class="search-matches hidden">0 matches</span>
+                            </div>
+                            <div class="font-controls">
+                                <button id="font-decrease" class="btn btn-icon-small" title="Decrease Font Size">
+                                    <i class="fa-solid fa-minus"></i>
+                                </button>
+                                <span id="font-size-label">14px</span>
+                                <button id="font-increase" class="btn btn-icon-small" title="Increase Font Size">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-output-wrapper">
+                            <div id="extracted-text-view" class="text-output" contenteditable="false"></div>
+                        </div>
+                        <div class="tab-footer">
+                            <button id="copy-text-btn" class="btn btn-secondary">
+                                <i class="fa-solid fa-copy"></i> Copy Raw Text
+                            </button>
+                            <button id="download-txt-btn" class="btn btn-primary">
+                                <i class="fa-solid fa-download"></i> Save as TXT
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Elements Structure Table -->
+                    <div id="tab-elements" class="tab-pane hidden">
+                        <div class="elements-table-wrapper">
+                            <table class="elements-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 8%">#</th>
+                                        <th style="width: 67%">Recognized Text Segment</th>
+                                        <th style="width: 25%">Confidence</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="elements-table-body">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="tab-footer">
+                            <button id="download-csv-btn" class="btn btn-secondary">
+                                <i class="fa-solid fa-file-csv"></i> Download CSV
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Raw JSON Response -->
+                    <div id="tab-json" class="tab-pane hidden">
+                        <div class="json-output-wrapper">
+                            <pre><code id="json-output-view" class="json-code"></code></pre>
+                        </div>
+                        <div class="tab-footer">
+                            <button id="copy-json-btn" class="btn btn-secondary">
+                                <i class="fa-solid fa-copy"></i> Copy JSON
+                            </button>
+                            <button id="download-json-btn" class="btn btn-primary">
+                                <i class="fa-solid fa-download"></i> Save as JSON
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Performance & Metrics Footer -->
+        <footer class="metrics-bar">
+            <div class="metric-item">
+                <span class="metric-label">Status</span>
+                <span id="metric-status" class="metric-value status-idle">Ready</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Inference Speed</span>
+                <span id="metric-speed" class="metric-value">-</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Avg Confidence</span>
+                <span id="metric-confidence" class="metric-value">-</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Detected Blocks</span>
+                <span id="metric-blocks" class="metric-value">-</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Resolution</span>
+                <span id="metric-resolution" class="metric-value">-</span>
+            </div>
+        </footer>
+
+        <!-- Slide-out Scan History Drawer -->
+        <div id="history-drawer" class="history-drawer">
+            <div class="drawer-header">
+                <h3><i class="fa-solid fa-history"></i> Scan History</h3>
+                <button id="history-close" class="btn btn-icon" title="Close Drawer">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            <div class="drawer-body">
+                <div id="history-empty" class="history-empty">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <p>No recent scans found.</p>
+                </div>
+                <ul id="history-list" class="history-list hidden">
+                    <!-- Populated dynamically -->
+                </ul>
+            </div>
+            <div class="drawer-footer">
+                <button id="clear-history-btn" class="btn btn-danger btn-full">
+                    <i class="fa-solid fa-trash-can"></i> Clear All History
+                </button>
+            </div>
+        </div>
+        
+        <!-- Backdrop for History Drawer -->
+        <div id="drawer-backdrop" class="drawer-backdrop"></div>
+        
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast hidden">
+        <i class="fa-solid fa-circle-check toast-icon"></i>
+        <span id="toast-message">Message copied!</span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
